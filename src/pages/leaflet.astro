@@ -1,0 +1,29 @@
+---
+import Layout from "../layouts/Layout.astro";
+import "leaflet/dist/leaflet.css";
+import listeEtablissements from "../assets/listeEtablissements.json";
+---
+
+<Layout title="Carte Leaflet">
+    <h1 class="text-2xl mb-4">Carte des établissements (Leaflet)</h1>
+    <div id="map" style="height: 600px;"></div>
+
+    <script>
+        import L from "leaflet";
+        import listeEtablissements from "../assets/listeEtablissements.json";
+
+        // Initialisation de la carte centrée sur la France
+        const map = L.map("map").setView([46.6033, 1.883], 6);
+
+        // Ajout du fond de carte OpenStreetMap
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap contributors",
+        }).addTo(map);
+
+        // Ajout des marqueurs depuis la liste JSON
+        listeEtablissements.forEach((etab) => {
+            const marker = L.marker([etab.lat, etab.lon]).addTo(map);
+            marker.bindPopup(`<b>${etab.name}</b>`);
+        });
+    </script>
+</Layout>

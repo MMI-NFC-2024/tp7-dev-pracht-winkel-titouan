@@ -1,18 +1,55 @@
 ---
 import "../styles/global.css";
+const { title = "TP GéoData" } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
-    <title>Astro Basics</title>
+    <title>{title}</title>
   </head>
-  <body>
-    <slot />
+
+  <body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col font-sans">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+      <nav
+        class="container mx-auto flex items-center justify-between px-6 py-3"
+      >
+        <a
+          href="/"
+          class="text-xl font-bold text-emerald-700 hover:text-emerald-800 transition"
+        >
+        TP GéoData
+        </a>
+
+        <ul class="flex items-center gap-6">
+          <li>
+            <a href="/" class="hover:text-emerald-600 transition">Accueil</a>
+          </li>
+          <li>
+            <a href="/leaflet" class="hover:text-emerald-600 transition"
+              >Carte Leaflet</a
+            >
+          </li>
+          <li>
+            <a href="/geojson" class="hover:text-emerald-600 transition"
+              >Carte GeoJSON</a
+            >
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+   
+    <main class="container mx-auto px-6 py-8 flex-1">
+      <slot />
+    </main>
+
+   
   </body>
 </html>
 

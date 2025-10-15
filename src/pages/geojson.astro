@@ -1,0 +1,169 @@
+---
+// garde ton frontmatter Astro (layout, listes pour selects si tu veux)
+// mais le JS client ci-dessous va fetcher les JSON depuis /assets/
+import Layout from "../layouts/Layout.astro";
+const dummy = "";
+---
+
+<Layout title="Carte GeoJSON / Population">
+    <h1 class="text-2xl mb-4">Population par département (GeoJSON + Plot)</h1>
+
+    <div class="flex gap-4 mb-6">
+        <div>
+            <label for="annee">Année :</label>
+            <select id="annee"></select>
+        </div>
+        <div>
+            <label for="sexe">Sexe :</label>
+            <select id="sexe"></select>
+        </div>
+        <div>
+            <label for="age">Âge :</label>
+            <select id="age"></select>
+        </div>
+    </div>
+
+    <div id="plot"></div>
+
+    <script type="module">
+        import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            const divPlot = document.getElementById("plot");
+            const elmAnnee = document.getElementById("annee");
+            const elmSexe = document.getElementById("sexe");
+            const elmAge = document.getElementById("age");
+
+            try {
+                // fetch depuis le dossier public/assets
+                const [respDeps, respPop] = await Promise.all([
+                    fetch("/assets/departements.geojson.json"),
+                    fetch("/assets/populationMain.json"),
+                ]);
+
+                if (!respDeps.ok || !respPop.ok) {
+                    throw new Error(
+                        `Fetch error: ${respDeps.status} / ${respPop.status}`,
+                    );
+                }
+
+                const departements = await respDeps.json();
+                const populationMain = await respPop.json();
+
+                console.log(
+                    "departements loaded:",
+                    departements.type,
+                    "features:",
+                    departements.features?.length,
+                );
+                console.log(
+                    "populationMain loaded:",
+                    Array.isArray(populationMain),
+                    populationMain.length,
+                );
+
+                // remplir dynamiquement les selects (sécurité si on ne veut pas le faire côté serveur)
+                const annees = [
+                    ...new Set(populationMain.map((d) => d["Période"])),
+                ].sort((a, b) => b - a);
+                const sexes = [
+                    ...new Set(populationMain.map((d) => d["Sexe"])),
+                ];
+                const ages = [
+                    ...new Set(
+                        populationMain.map((d) => (d["Âge"] || "Total").trim()),
+                    ),
+                ];
+
+                function fillSelect(elm, values, defaultVal) {
+                    elm.innerHTML = "";
+                    values.forEach((v, i) => {
+                        const opt = document.createElement("option");
+                        opt.value = v;
+                        opt.text = v;
+                        if (i === 0 || v === defaultVal) opt.selected = true;
+                        elm.appendChild(opt);
+                    });
+                }
+
+                fillSelect(elmAnnee, annees, annees[0]);
+                fillSelect(elmSexe, sexes, "Total");
+                fillSelect(elmAge, ages, "Total");
+
+                function renderPlot() {
+                    const selectedYear = Number(elmAnnee.value);
+                    const selectedSex = elmSexe.value;
+                    const selectedAge = elmAge.value;
+
+                    // small helper: get valeur or 0
+                    function valueForDept(deptName) {
+                        const p = populationMain.find(
+                            (x) =>
+                                x["Géographie"] === deptName &&
+                                Number(x["Période"]) === selectedYear &&
+                                x["Sexe"] === selectedSex &&
+                                (x["Âge"] || "").trim() ===
+                                    (selectedAge || "").trim(),
+                        );
+                        return p ? Number(p["Valeur"]) : 0;
+                    }
+
+                    const chart = Plot.plot({
+                        width: Math.min(1000, window.innerWidth - 40),
+                        height: 700,
+                        projection: {
+                            type: "mercator",
+                            domain: departements,
+                        },
+                        color: {
+                            type: "quantile",
+                            n: 7,
+                            scheme: "Greens",
+                            label: "Population",
+                            legend: true,
+                        },
+                        marks: [
+                            Plot.geo(departements, {
+                                fill: (d) => valueForDept(d.properties.nom),
+                                stroke: "#999",
+                                title: (d) => {
+                                    const name = d.properties.nom;
+                                    const val = valueForDept(name);
+                                    return val
+                                        ? `${name} : ${val.toLocaleString("fr-FR")}`
+                                        : `${name} : données manquantes`;
+                                },
+                                tip: true,
+                            }),
+                        ],
+                    });
+
+                    divPlot.innerHTML = "";
+                    divPlot.appendChild(chart);
+                }
+
+                renderPlot();
+                elmAnnee.addEventListener("change", renderPlot);
+                elmSexe.addEventListener("change", renderPlot);
+                elmAge.addEventListener("change", renderPlot);
+            } catch (err) {
+                console.error("Erreur initialisation plot:", err);
+                const p = document.createElement("p");
+                p.textContent =
+                    "Erreur lors du chargement des données. Regardez la console (F12).";
+                divPlot.innerHTML = "";
+                divPlot.appendChild(p);
+            }
+        });
+    </script>
+
+    <style>
+        /* forcer SVG responsive */
+        #plot svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</Layout>
